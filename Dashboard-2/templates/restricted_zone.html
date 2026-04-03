@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restricted Zone Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e17;
+            color: #e0e6ed;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1f35 0%, #0d1117 100%);
+            padding: 15px 30px;
+            border-bottom: 2px solid #2d3748;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #f56565;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.stopped {
+            background: #f56565;
+            animation: none;
+        }
+
+        .video-loop-badge {
+            background: #2d3748;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            color: #a0aec0;
+            margin-left: 15px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 70px);
+            padding: 15px;
+            gap: 15px;
+        }
+
+        .video-section {
+            flex: 0 0 60%;
+            background: #1a1f35;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .video-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
+
+        .video-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .video-placeholder {
+            color: #4a5568;
+            text-align: center;
+        }
+
+        .panels-section {
+            flex: 0 0 38%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .panel {
+            background: #1a1f35;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #2d3748;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #2d3748;
+        }
+
+        .panel-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #a0aec0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .zone-status-panel {
+            flex-shrink: 0;
+        }
+
+        .zone-status-card {
+            background: #0d1117;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 3px solid;
+            transition: all 0.3s;
+        }
+
+        .zone-status-card.CLEAR {
+            border-color: #48bb78;
+            background: rgba(72, 187, 120, 0.05);
+        }
+
+        .zone-status-card.ACTIVE {
+            border-color: #ecc94b;
+            background: rgba(236, 201, 75, 0.05);
+        }
+
+        .zone-status-card.VIOLATED {
+            border-color: #f56565;
+            background: rgba(245, 101, 101, 0.1);
+            animation: violationPulse 1s infinite;
+        }
+
+        @keyframes violationPulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(245, 101, 101, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(245, 101, 101, 0.6); }
+        }
+
+        .zone-status-label {
+            font-size: 0.85rem;
+            color: #718096;
+            margin-bottom: 8px;
+        }
+
+        .zone-status-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .zone-status-card.CLEAR .zone-status-value { color: #48bb78; }
+        .zone-status-card.ACTIVE .zone-status-value { color: #ecc94b; }
+        .zone-status-card.VIOLATED .zone-status-value { color: #f56565; }
+
+        .zone-aircraft-count {
+            font-size: 1rem;
+            color: #a0aec0;
+        }
+
+        .aircraft-panel {
+            flex-shrink: 0;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        th {
+            background: #0d1117;
+            padding: 8px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #a0aec0;
+            border-bottom: 2px solid #2d3748;
+        }
+
+        td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #2d3748;
+        }
+
+        tr:hover {
+            background: rgba(245, 101, 101, 0.05);
+        }
+
+        .severity-badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .severity-badge.NORMAL { background: rgba(72, 187, 120, 0.2); color: #48bb78; }
+        .severity-badge.WARNING { background: rgba(237, 137, 54, 0.2); color: #ed8936; }
+        .severity-badge.CRITICAL { background: rgba(245, 101, 101, 0.2); color: #f56565; }
+
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-badge.MOVING { background: rgba(72, 187, 120, 0.2); color: #48bb78; }
+        .status-badge.STATIC { background: rgba(160, 174, 192, 0.2); color: #a0aec0; }
+
+        .no-data {
+            text-align: center;
+            color: #4a5568;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        .alerts-panel {
+            flex-shrink: 0;
+        }
+
+        .alerts-list {
+            max-height: 180px;
+            overflow-y: auto;
+        }
+
+        .alert-item {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-item.CRITICAL {
+            border-color: #f56565;
+            background: rgba(245, 101, 101, 0.1);
+        }
+
+        .alert-item.WARNING {
+            border-color: #ed8936;
+            background: rgba(237, 137, 54, 0.1);
+        }
+
+        .alert-icon {
+            font-size: 1.3rem;
+        }
+
+        .alert-item.CRITICAL .alert-icon { color: #f56565; }
+        .alert-item.WARNING .alert-icon { color: #ed8936; }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-message {
+            font-size: 0.85rem;
+            margin-bottom: 2px;
+        }
+
+        .alert-id {
+            font-size: 0.75rem;
+            color: #718096;
+        }
+
+        .logs-panel {
+            flex: 1;
+            min-height: 150px;
+        }
+
+        .logs-list {
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.7rem;
+            padding-right: 5px;
+        }
+
+        .logs-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .logs-list::-webkit-scrollbar-thumb {
+            background: #2d3748;
+            border-radius: 2px;
+        }
+
+        .log-item {
+            padding: 5px 8px;
+            margin-bottom: 4px;
+            background: #0d1117;
+            border-radius: 4px;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            line-height: 1.4;
+        }
+
+        .log-time {
+            color: #4fd1c5;
+            flex-shrink: 0;
+            font-size: 0.7rem;
+        }
+
+        .log-message {
+            color: #e2e8f0;
+            word-break: break-word;
+        }
+
+        .log-item.CRITICAL { border-left: 3px solid #f56565; }
+        .log-item.CRITICAL .log-message { color: #f56565; }
+        .log-item.WARNING { border-left: 3px solid #ed8936; }
+        .log-item.WARNING .log-message { color: #ed8936; }
+        .log-item.INFO { border-left: 3px solid #48bb78; }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-start {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-start:hover {
+            background: #38a169;
+        }
+
+        .btn-stop {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-stop:hover {
+            background: #e53e3e;
+        }
+
+        .last-update {
+            font-size: 0.75rem;
+            color: #718096;
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .video-section {
+                flex: none;
+                height: 50vh;
+            }
+
+            .panels-section {
+                flex: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🔒 Restricted Zone Monitoring Dashboard</h1>
+        <div class="controls">
+            <span class="video-loop-badge" id="videoLoopBadge" style="display: none;">Loop #0</span>
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Stopped</span>
+            </div>
+            <button class="btn btn-start" onclick="startStream()">Start</button>
+            <button class="btn btn-stop" onclick="stopStream()">Stop</button>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <section class="video-section">
+            <div class="video-container">
+                <div class="video-placeholder" id="videoPlaceholder">
+                    <h2>Video Stream</h2>
+                    <p>Click "Start" to begin monitoring</p>
+                </div>
+                <img id="videoFeed" src="" style="display: none;" alt="Video Feed">
+            </div>
+        </section>
+
+        <aside class="panels-section">
+            <div class="panel zone-status-panel">
+                <div class="panel-header">
+                    <span class="panel-title">Restricted Zone Status</span>
+                    <span class="last-update" id="lastUpdate">--:--:--</span>
+                </div>
+                <div class="zone-status-card CLEAR" id="zoneStatusCard">
+                    <div class="zone-status-label">STATUS</div>
+                    <div class="zone-status-value" id="zoneStatus">CLEAR</div>
+                    <div class="zone-aircraft-count">
+                        Aircraft Inside: <span id="aircraftCount">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel aircraft-panel">
+                <div class="panel-header">
+                    <span class="panel-title">Aircraft Inside Zone</span>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Status</th>
+                                <th>Time Inside</th>
+                                <th>Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="aircraftTableBody">
+                            <tr>
+                                <td colspan="4" class="no-data">No aircraft in restricted zone</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel alerts-panel">
+                <div class="panel-header">
+                    <span class="panel-title">Active Alerts</span>
+                    <span id="alertCount" style="font-size: 0.85rem;">0</span>
+                </div>
+                <div class="alerts-list" id="alertsList">
+                    <div class="no-data">No active alerts</div>
+                </div>
+            </div>
+
+            <div class="panel logs-panel">
+                <div class="panel-header">
+                    <span class="panel-title">Event Logs</span>
+                </div>
+                <div class="logs-list" id="logsList">
+                    <div class="log-item INFO">
+                        <span class="log-time">[--:--:--]</span>
+                        <span class="log-message">Waiting for events...</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        let streamActive = false;
+        let updateInterval = null;
+
+        function startStream() {
+            fetch('/api/start', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    console.log('Start response:', data);
+                    if (data.status === 'started' || data.status === 'already_running') {
+                        document.getElementById('videoPlaceholder').style.display = 'none';
+                        document.getElementById('videoFeed').style.display = 'block';
+                        document.getElementById('videoFeed').src = '/video_feed';
+                        document.getElementById('statusDot').classList.remove('stopped');
+                        document.getElementById('statusText').textContent = 'Live';
+                        document.getElementById('videoLoopBadge').style.display = 'inline';
+                        streamActive = true;
+                        setTimeout(startDataUpdates, 1000);
+                    } else if (data.status === 'error') {
+                        console.error('Stream error:', data.message);
+                        alert('Failed to start stream: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error starting stream:', err);
+                    alert('Failed to connect to server');
+                });
+        }
+
+        function stopStream() {
+            fetch('/api/stop', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('videoFeed').style.display = 'none';
+                    document.getElementById('videoPlaceholder').style.display = 'block';
+                    document.getElementById('statusDot').classList.add('stopped');
+                    document.getElementById('statusText').textContent = 'Stopped';
+                    document.getElementById('videoLoopBadge').style.display = 'none';
+                    streamActive = false;
+                    stopDataUpdates();
+                })
+                .catch(err => console.error('Error stopping stream:', err));
+        }
+
+        function startDataUpdates() {
+            updateData();
+            updateInterval = setInterval(updateData, 1500);
+        }
+
+        function stopDataUpdates() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        }
+
+        function updateData() {
+            fetch('/api/data')
+                .then(res => res.json())
+                .then(data => {
+                    console.log('Received data:', data);
+                    if (!data || !data.restricted_zone) {
+                        console.log('Empty data received');
+                        return;
+                    }
+                    updateZoneStatus(data.restricted_zone);
+                    updateAircraftTable(data.restricted_zone.aircraft);
+                    updateAlerts(data.restricted_zone.alerts);
+                    updateLogs(data.restricted_zone.logs);
+                    updateLastUpdate(data.timestamp);
+                    if (data.video_loop !== undefined && data.video_loop > 0) {
+                        document.getElementById('videoLoopBadge').textContent = `Loop #${data.video_loop}`;
+                    }
+                })
+                .catch(err => console.error('Error fetching data:', err));
+        }
+
+        function updateZoneStatus(zoneData) {
+            const statusCard = document.getElementById('zoneStatusCard');
+            const statusText = document.getElementById('zoneStatus');
+            const countText = document.getElementById('aircraftCount');
+
+            statusCard.className = `zone-status-card ${zoneData.status}`;
+            statusText.textContent = zoneData.status;
+            countText.textContent = zoneData.aircraft_count;
+        }
+
+        function updateAircraftTable(aircraft) {
+            const tbody = document.getElementById('aircraftTableBody');
+
+            if (!aircraft || aircraft.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="no-data">No aircraft in restricted zone</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = aircraft.map(a => `
+                <tr>
+                    <td><strong>${a.id}</strong></td>
+                    <td><span class="status-badge ${a.status}">${a.status}</span></td>
+                    <td>${a.time_inside}s</td>
+                    <td><span class="severity-badge ${a.severity}">${a.severity}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        function updateAlerts(alerts) {
+            const list = document.getElementById('alertsList');
+            const countEl = document.getElementById('alertCount');
+
+            countEl.textContent = alerts ? alerts.length : 0;
+
+            if (!alerts || alerts.length === 0) {
+                list.innerHTML = '<div class="no-data">No active alerts</div>';
+                return;
+            }
+
+            list.innerHTML = alerts.map(a => `
+                <div class="alert-item ${a.type}">
+                    <div class="alert-icon">
+                        ${a.severity_color === 'red' ? '🔴' : '🟠'}
+                    </div>
+                    <div class="alert-content">
+                        <div class="alert-message">${a.message}</div>
+                        <div class="alert-id">ID: ${a.aircraft_id}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateLogs(logs) {
+            const list = document.getElementById('logsList');
+
+            if (!logs || logs.length === 0) {
+                list.innerHTML = `
+                    <div class="log-item INFO">
+                        <span class="log-time">[--:--:--]</span>
+                        <span class="log-message">Waiting for events...</span>
+                    </div>
+                `;
+                return;
+            }
+
+            const recentLogs = logs.slice(-20);
+            list.innerHTML = recentLogs.map(log => `
+                <div class="log-item ${log.severity}">
+                    <span class="log-time">[${log.timestamp}]</span>
+                    <span class="log-message">${log.message}</span>
+                </div>
+            `).join('');
+        }
+
+        function updateLastUpdate(timestamp) {
+            document.getElementById('lastUpdate').textContent = timestamp || '--:--:--';
+        }
+    </script>
+</body>
+</html>

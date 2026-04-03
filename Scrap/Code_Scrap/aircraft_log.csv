@@ -1,0 +1,21 @@
+Track ID,Entry Time,Exit Time,Duration (sec),Status,In Restricted Zone
+1,11:58:35,Still Present,0,Active,No
+2,11:58:35,Still Present,0,Active,No
+3,11:58:35,11:59:21,45.46,Exited,No
+4,11:58:35,Still Present,0,Active,No
+5,11:58:35,Still Present,0,Active,No
+6,11:58:35,Still Present,0,Active,No
+7,11:58:35,Still Present,0,Active,No
+8,11:58:35,Still Present,0,Active,No
+9,11:58:35,Still Present,0,Active,No
+10,11:58:35,Still Present,0,Active,No
+11,11:58:35,Still Present,0,Active,Yes
+12,11:58:35,Still Present,0,Active,No
+13,11:58:35,Still Present,0,Active,No
+14,11:58:35,Still Present,0,Active,No
+15,11:58:35,Still Present,0,Active,No
+16,11:58:35,Still Present,0,Active,No
+17,11:58:49,Still Present,0,Active,No
+18,11:59:02,Still Present,0,Active,No
+22,11:59:14,11:59:28,14.72,Exited,No
+25,11:59:19,Still Present,0,Active,No
