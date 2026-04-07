@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e17;
+            color: #e0e6ed;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1f35 0%, #0d1117 100%);
+            padding: 12px 25px;
+            border-bottom: 2px solid #2d3748;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+
+        .header h1 {
+            color: #4fd1c5;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .overall-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .overall-status.SAFE { background: rgba(72, 187, 120, 0.2); color: #48bb78; }
+        .overall-status.WARNING { background: rgba(237, 137, 54, 0.2); color: #ed8936; }
+        .overall-status.CRITICAL { background: rgba(245, 101, 101, 0.2); color: #f56565; animation: pulse-alert 1s infinite; }
+
+        @keyframes pulse-alert {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .summary-stats {
+            display: flex;
+            gap: 15px;
+        }
+
+        .stat-badge {
+            background: #1a1f35;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-badge.critical { border: 1px solid #f56565; color: #f56565; }
+        .stat-badge.warning { border: 1px solid #ed8936; color: #ed8936; }
+        .stat-badge.aircraft { border: 1px solid #4fd1c5; color: #4fd1c5; }
+
+        .video-loop-badge {
+            background: #2d3748;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            color: #a0aec0;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 7px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            font-size: 0.85rem;
+        }
+
+        .btn-start { background: #48bb78; color: white; }
+        .btn-start:hover { background: #38a169; }
+        .btn-stop { background: #f56565; color: white; }
+        .btn-stop:hover { background: #e53e3e; }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 60px);
+            padding: 15px;
+            gap: 15px;
+        }
+
+        .video-section {
+            flex: 0 0 55%;
+            background: #1a1f35;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-header {
+            padding: 10px 15px;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2d3748;
+        }
+
+        .video-title {
+            color: #a0aec0;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .video-timestamp {
+            color: #4fd1c5;
+            font-size: 0.8rem;
+        }
+
+        .video-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            position: relative;
+        }
+
+        .video-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .video-placeholder {
+            color: #4a5568;
+            text-align: center;
+        }
+
+        .panels-section {
+            flex: 0 0 43%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        .panel {
+            background: #1a1f35;
+            border-radius: 10px;
+            border: 1px solid #2d3748;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #2d3748;
+        }
+
+        .panel-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #a0aec0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .panel-body {
+            padding: 15px;
+        }
+
+        .overview-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .overview-card {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .overview-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #4fd1c5;
+        }
+
+        .overview-label {
+            font-size: 0.75rem;
+            color: #718096;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        .overview-card.warning .overview-value { color: #ed8936; }
+        .overview-card.danger .overview-value { color: #f56565; }
+
+        .gate-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 10px;
+        }
+
+        .gate-item {
+            aspect-ratio: 1.2;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            border: 3px solid;
+            transition: all 0.3s;
+            cursor: default;
+        }
+
+        .gate-item.FREE {
+            background: rgba(72, 187, 120, 0.1);
+            border-color: #48bb78;
+            color: #48bb78;
+        }
+
+        .gate-item.OCCUPIED {
+            background: rgba(245, 101, 101, 0.15);
+            border-color: #f56565;
+            color: #f56565;
+        }
+
+        .gate-item.ERROR {
+            background: rgba(237, 137, 54, 0.15);
+            border-color: #ed8936;
+            color: #ed8936;
+        }
+
+        .gate-id {
+            font-size: 1.1rem;
+        }
+
+        .gate-duration {
+            font-size: 0.7rem;
+            margin-top: 3px;
+            opacity: 0.8;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        .data-table th {
+            background: #0d1117;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #718096;
+            border-bottom: 2px solid #2d3748;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .data-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #1a1f35;
+        }
+
+        .data-table tbody tr:hover {
+            background: rgba(79, 209, 197, 0.05);
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .badge.DOCKED { background: rgba(72, 187, 120, 0.2); color: #48bb78; }
+        .badge.DELAY { background: rgba(237, 137, 54, 0.2); color: #ed8936; }
+        .badge.ARRIVING { background: rgba(66, 153, 225, 0.2); color: #4299e1; }
+        .badge.BOARDING { background: rgba(160, 174, 192, 0.2); color: #a0aec0; }
+
+        .alerts-panel {
+            flex-shrink: 0;
+        }
+
+        .alerts-list {
+            max-height: 140px;
+            overflow-y: auto;
+        }
+
+        .alert-item {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-item.CRITICAL { border-color: #f56565; background: rgba(245, 101, 101, 0.1); }
+        .alert-item.WARNING { border-color: #ed8936; background: rgba(237, 137, 54, 0.1); }
+        .alert-item.INFO { border-color: #4299e1; background: rgba(66, 153, 225, 0.1); }
+
+        .alert-icon {
+            font-size: 1.2rem;
+        }
+
+        .alert-item.CRITICAL .alert-icon { color: #f56565; }
+        .alert-item.WARNING .alert-icon { color: #ed8936; }
+        .alert-item.INFO .alert-icon { color: #4299e1; }
+
+        .alert-message {
+            font-size: 0.85rem;
+            flex: 1;
+        }
+
+        .logs-panel {
+            flex: 1;
+            min-height: 100px;
+        }
+
+        .logs-list {
+            max-height: 150px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 0.7rem;
+        }
+
+        .log-item {
+            padding: 5px 8px;
+            margin-bottom: 4px;
+            background: #0d1117;
+            border-radius: 4px;
+            display: flex;
+            gap: 8px;
+            border-left: 3px solid;
+        }
+
+        .log-time {
+            color: #4fd1c5;
+            flex-shrink: 0;
+        }
+
+        .log-message {
+            color: #e2e8f0;
+        }
+
+        .log-item.CRITICAL { border-left-color: #f56565; }
+        .log-item.CRITICAL .log-message { color: #f56565; }
+        .log-item.WARNING { border-left-color: #ed8936; }
+        .log-item.WARNING .log-message { color: #ed8936; }
+        .log-item.INFO { border-left-color: #48bb78; }
+
+        .no-data {
+            text-align: center;
+            color: #4a5568;
+            padding: 20px;
+            font-style: italic;
+            font-size: 0.85rem;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #2d3748;
+            border-radius: 3px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                flex-direction: column;
+                height: auto;
+                overflow-y: auto;
+            }
+
+            .video-section {
+                flex: none;
+                height: 50vh;
+            }
+
+            .panels-section {
+                flex: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🚪 Terminal Monitoring Dashboard</h1>
+        <div class="status-indicator">
+            <span class="video-loop-badge" id="videoLoopBadge" style="display: none;">Loop #0</span>
+            <div class="summary-stats">
+                <div class="stat-badge aircraft">
+                    <span>✈️</span>
+                    <span id="totalAircraft">0</span> Aircraft
+                </div>
+                <div class="stat-badge warning" id="warningBadge" style="display: none;">
+                    <span>⚠️</span>
+                    <span id="warningCount">0</span> Warnings
+                </div>
+                <div class="stat-badge critical" id="criticalBadge" style="display: none;">
+                    <span>🚨</span>
+                    <span id="criticalCount">0</span> Critical
+                </div>
+            </div>
+            <div class="overall-status SAFE" id="overallStatus">
+                <span id="statusIcon">✓</span>
+                <span id="statusText">SAFE</span>
+            </div>
+            <div class="controls">
+                <button class="btn btn-start" onclick="startStream()">▶ Start</button>
+                <button class="btn btn-stop" onclick="stopStream()">■ Stop</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <section class="video-section">
+            <div class="video-header">
+                <span class="video-title">📹 Live Video Feed</span>
+                <span class="video-timestamp" id="lastUpdate">--:--:--</span>
+            </div>
+            <div class="video-container">
+                <div class="video-placeholder" id="videoPlaceholder">
+                    <h2>Video Stream</h2>
+                    <p>Click "Start" to begin monitoring</p>
+                </div>
+                <img id="videoFeed" src="" style="display: none;" alt="Video Feed">
+            </div>
+        </section>
+
+        <aside class="panels-section">
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Terminal Overview</span>
+                </div>
+                <div class="panel-body">
+                    <div class="overview-stats">
+                        <div class="overview-card">
+                            <div class="overview-value" id="terminalTotal">0</div>
+                            <div class="overview-label">Total Gates</div>
+                        </div>
+                        <div class="overview-card warning">
+                            <div class="overview-value" id="terminalOccupied">0</div>
+                            <div class="overview-label">Occupied</div>
+                        </div>
+                        <div class="overview-card">
+                            <div class="overview-value" id="terminalAvailable">0</div>
+                            <div class="overview-label">Available</div>
+                        </div>
+                    </div>
+                    <div class="gate-grid" id="gateGrid">
+                        <div class="no-data">No gates configured</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Aircraft at Gates</span>
+                    <span id="aircraftCount" style="font-size: 0.85rem; color: #4fd1c5;">0</span>
+                </div>
+                <div class="panel-body" style="padding: 0 15px;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Aircraft ID</th>
+                                <th>Gate</th>
+                                <th>Status</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="aircraftTable">
+                            <tr><td colspan="4" class="no-data">No aircraft at gates</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel alerts-panel">
+                <div class="panel-header">
+                    <span class="panel-title">Alerts</span>
+                </div>
+                <div class="panel-body">
+                    <div class="alerts-list" id="alertsList">
+                        <div class="no-data">No active alerts</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel logs-panel">
+                <div class="panel-header">
+                    <span class="panel-title">Event Logs</span>
+                </div>
+                <div class="panel-body">
+                    <div class="logs-list" id="logsList">
+                        <div class="no-data">No events recorded</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        let streamActive = false;
+        let updateInterval = null;
+
+        function startStream() {
+            fetch('/api/start', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'started' || data.status === 'already_running') {
+                        document.getElementById('videoPlaceholder').style.display = 'none';
+                        document.getElementById('videoFeed').style.display = 'block';
+                        document.getElementById('videoFeed').src = '/video_feed';
+                        document.getElementById('videoLoopBadge').style.display = 'inline';
+                        streamActive = true;
+                        setTimeout(startDataUpdates, 500);
+                    } else if (data.status === 'error') {
+                        alert('Failed to start: ' + data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error starting stream:', err);
+                    alert('Failed to connect to server');
+                });
+        }
+
+        function stopStream() {
+            fetch('/api/stop', { method: 'POST' })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('videoFeed').style.display = 'none';
+                    document.getElementById('videoPlaceholder').style.display = 'block';
+                    document.getElementById('videoLoopBadge').style.display = 'none';
+                    streamActive = false;
+                    stopDataUpdates();
+                })
+                .catch(err => console.error('Error stopping stream:', err));
+        }
+
+        function startDataUpdates() {
+            updateData();
+            updateInterval = setInterval(updateData, 1500);
+        }
+
+        function stopDataUpdates() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        }
+
+        function updateData() {
+            fetch('/api/data')
+                .then(res => res.json())
+                .then(data => {
+                    if (!data || !data.terminal) return;
+
+                    updateTerminal(data.terminal);
+                    document.getElementById('lastUpdate').textContent = data.timestamp || '--:--:--';
+                    if (data.video_loop > 0) {
+                        document.getElementById('videoLoopBadge').textContent = `Loop #${data.video_loop}`;
+                    }
+                })
+                .catch(err => console.error('Error fetching data:', err));
+        }
+
+        function updateTerminal(terminal) {
+            const summary = terminal.summary || {};
+
+            document.getElementById('totalAircraft').textContent = summary.total_aircraft || 0;
+            document.getElementById('terminalTotal').textContent = terminal.total_gates || 0;
+            document.getElementById('terminalOccupied').textContent = terminal.occupied || 0;
+            document.getElementById('terminalAvailable').textContent = terminal.available || 0;
+            document.getElementById('aircraftCount').textContent = terminal.aircraft?.length || 0;
+
+            const criticalCount = summary.critical_count || 0;
+            const warningCount = summary.warning_count || 0;
+            const overallStatus = summary.overall_status || 'SAFE';
+
+            document.getElementById('criticalBadge').style.display = criticalCount > 0 ? 'flex' : 'none';
+            document.getElementById('criticalCount').textContent = criticalCount;
+            document.getElementById('warningBadge').style.display = warningCount > 0 ? 'flex' : 'none';
+            document.getElementById('warningCount').textContent = warningCount;
+
+            const statusEl = document.getElementById('overallStatus');
+            statusEl.className = `overall-status ${overallStatus}`;
+            document.getElementById('statusText').textContent = overallStatus;
+            document.getElementById('statusIcon').textContent = overallStatus === 'SAFE' ? '✓' : (overallStatus === 'WARNING' ? '⚠' : '🚨');
+
+            const gateGrid = document.getElementById('gateGrid');
+            if (terminal.gates && terminal.gates.length > 0) {
+                gateGrid.innerHTML = terminal.gates.map(g => `
+                    <div class="gate-item ${g.status}" title="${g.status}${g.aircraft_id ? ' - ' + g.aircraft_id : ''}">
+                        <div class="gate-id">${g.id}</div>
+                        ${g.duration > 0 ? `<div class="gate-duration">${g.duration}s</div>` : ''}
+                    </div>
+                `).join('');
+            } else {
+                gateGrid.innerHTML = '<div class="no-data">No gates configured</div>';
+            }
+
+            const aircraftTable = document.getElementById('aircraftTable');
+            if (terminal.aircraft && terminal.aircraft.length > 0) {
+                aircraftTable.innerHTML = terminal.aircraft.map(a => `
+                    <tr>
+                        <td><strong>${a.id}</strong></td>
+                        <td>${a.gate}</td>
+                        <td><span class="badge ${a.status}">${a.status}</span></td>
+                        <td>${a.duration}s</td>
+                    </tr>
+                `).join('');
+            } else {
+                aircraftTable.innerHTML = '<tr><td colspan="4" class="no-data">No aircraft at gates</td></tr>';
+            }
+
+            updateAlerts(terminal.alerts);
+            updateLogs(terminal.logs);
+        }
+
+        function updateAlerts(alerts) {
+            const el = document.getElementById('alertsList');
+            if (alerts && alerts.length > 0) {
+                el.innerHTML = alerts.map(a => `
+                    <div class="alert-item ${a.type}">
+                        <span class="alert-icon">${a.type === 'CRITICAL' ? '🚨' : (a.type === 'WARNING' ? '⚠️' : 'ℹ️')}</span>
+                        <span class="alert-message">${a.message}</span>
+                    </div>
+                `).join('');
+            } else {
+                el.innerHTML = '<div class="no-data">No active alerts</div>';
+            }
+        }
+
+        function updateLogs(logs) {
+            const el = document.getElementById('logsList');
+            if (logs && logs.length > 0) {
+                el.innerHTML = logs.slice(-15).map(log => `
+                    <div class="log-item ${log.severity}">
+                        <span class="log-time">[${log.timestamp}]</span>
+                        <span class="log-message">${log.message}</span>
+                    </div>
+                `).join('');
+            } else {
+                el.innerHTML = '<div class="no-data">No events recorded</div>';
+            }
+        }
+    </script>
+</body>
+</html>
