@@ -6,7 +6,7 @@ import os
 script_dir = os.path.dirname(os.path.abspath(__file__))
 media_dir = os.path.normpath(os.path.join(script_dir, "..", "Media"))
 
-img_path = os.path.join(media_dir, "restricted.jpg")
+img_path = os.path.join(media_dir, "terminal.jpg")
 img = cv2.imread(img_path)
 if img is None:
     print(f"Error: Image not found: {img_path}")

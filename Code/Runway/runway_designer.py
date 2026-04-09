@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(script_dir, "..")))
@@ -12,7 +13,7 @@ from Common.base_editor import BaseEditor
 ROOT_DIR = os.path.normpath(os.path.join(script_dir, "..", ".."))
 media_dir = os.path.join(ROOT_DIR, "Media")
 default_image = os.path.join(media_dir, "runway.png")
-save_path = os.path.join(script_dir, "runways.json")
+save_path = os.path.join(ROOT_DIR, "Airport_Simulator", "runways.json")
 
 class RunwayEditor(BaseEditor):
     def __init__(self, image_path: str):
@@ -52,7 +53,7 @@ class RunwayEditor(BaseEditor):
         self.print_instructions()
         
         while True:
-            display = self.render(None)
+            display = self.render(np.zeros((self.window_h, self.window_w, 3), dtype=np.uint8))
             extra = self.get_extra_info()
             self.draw_info_panel(display, extra)
             

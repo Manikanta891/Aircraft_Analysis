@@ -8,9 +8,10 @@ import json
 import argparse
 from Common.base_editor import SingleBoxEditor
 
-media_dir = os.path.normpath(os.path.join(script_dir, "..", "..", "Media"))
+ROOT_DIR = os.path.normpath(os.path.join(script_dir, "..", ".."))
+media_dir = os.path.join(ROOT_DIR, "Media")
 default_image = os.path.join(media_dir, "parking.jpg")
-default_save = os.path.join(script_dir, "parking.json")
+default_save = os.path.join(ROOT_DIR, "Airport_Simulator", "parking.json")
 
 class ParkingEditor(SingleBoxEditor):
     def __init__(self, image_path: str):

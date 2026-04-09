@@ -387,50 +387,13 @@ def initialize_system():
         cap.release()
         return False
 
-    video_h, video_w = frame.shape[:2]
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
-    # 🔥 Load parking.json
     with open(SLOTS_CONFIG_PATH, 'r') as f:
         config = json.load(f)
-        raw_slots = config.get('terminal_boxes', [])
-        config_w = config.get('image_width')
-        config_h = config.get('image_height')
+        slots = config.get('terminal_boxes', [])
 
-    print("\n" + "="*40)
-    print(f"Video size: {video_w} x {video_h}")
-    print(f"Image size: {config_w} x {config_h}")
-    print(f"Slots loaded: {len(raw_slots)}")
-    print("="*40 + "\n")
-
-    # 🔥 SCALE factors
-    scale_x = video_w / config_w
-    scale_y = video_h / config_h
-
-    print(f"Scale X: {scale_x:.4f}, Scale Y: {scale_y:.4f}")
-
-    # 🔥 OFFSET (IMPORTANT — tune this if needed)
-    offset_x = 125   # <-- adjust if needed
-    offset_y = 20   # <-- adjust if needed
-
-    print(f"Offset X: {offset_x}, Offset Y: {offset_y}")
-
-    # 🔥 Transform all slots
-    slots = []
-    for i, box in enumerate(raw_slots):
-        x, y, w, h = box
-
-        x_new = int((x - offset_x) * scale_x)
-        y_new = int((y - offset_y) * scale_y)
-        w_new = int(w * scale_x)
-        h_new = int(h * scale_y)
-
-        slots.append([x_new, y_new, w_new, h_new])
-
-        # DEBUG PRINT
-        print(f"Slot {i+1}: {slots[-1]}")
-
-    print(f"\nFinal transformed slots: {len(slots)}\n")
+    print(f"Slots loaded: {len(slots)}")
 
     # 🔥 Initialize detector
     detector = ParkingMonitor(slots)

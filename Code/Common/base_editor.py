@@ -1,5 +1,4 @@
-# The setup code of the below code need to modified 
-# JSON file which is generated is different from which is utilizing in the project. 
+
 
 import cv2
 import json
@@ -310,10 +309,15 @@ class SingleBoxEditor(BaseEditor):
         pass
     
     def get_save_data(self) -> Dict[str, Any]:
+        boxes_data = []
+        for box in self.boxes:
+            x1, y1, x2, y2 = self.get_box_coords(box)
+            boxes_data.append([int(x1), int(y1), int(x2 - x1), int(y2 - y1)])
         return {
             "image_path": self.image_path,
             "image_width": self.orig_w,
             "image_height": self.orig_h,
+            "terminal_boxes": boxes_data,
             "boxes": [
                 {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
                 for x1, y1, x2, y2 in (self.get_box_coords(b) for b in self.boxes)
