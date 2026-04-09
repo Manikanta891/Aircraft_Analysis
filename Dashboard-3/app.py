@@ -13,9 +13,12 @@ from datetime import datetime
 import time
 import threading
 
+config_w = None
+config_h = None
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = Path(script_dir).resolve().parent
-MODEL_PATH = ROOT_DIR / "Models" / "aircraft_detector_v8.pt"
+MODEL_PATH = ROOT_DIR / "Models" / "aircraft_detector_v11.pt"
 VIDEO_PATH = ROOT_DIR / "Simulation_Videos" / "parking_simulation.mp4"
 SLOTS_CONFIG_PATH = ROOT_DIR / "Airport_Simulator" / "parking.json"
 
@@ -217,6 +220,7 @@ def process_video():
 
     while is_running:
         ret, frame = cap.read()
+
         if not ret:
             video_loop_count += 1
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -225,6 +229,10 @@ def process_video():
             prev_results = None
             print(f"Video looped - Reset (loop #{video_loop_count})")
             continue
+
+        # 🔥 ONLY resize AFTER checking ret
+        if config_w is not None and config_h is not None:
+            frame = cv2.resize(frame, (config_w, config_h))
 
         frame_count += 1
         current_detections = []
@@ -346,7 +354,6 @@ def generate_frames():
                        b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
         time.sleep(0.03)
 
-
 def initialize_system():
     global model, tracker, cap, slots, detector, is_running, processing_thread
 
@@ -373,37 +380,31 @@ def initialize_system():
         print(f"Error: Cannot open video: {VIDEO_PATH}")
         return False
 
-    ret_test, frame_test = cap.read()
-    if not ret_test:
-        print(f"Error: Cannot read video frame")
+    # 🔥 Read one frame to get video size
+    ret, frame = cap.read()
+    if not ret:
+        print("Error: Cannot read video frame")
         cap.release()
         return False
-    
-    video_h, video_w = frame_test.shape[:2]
+
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-    
+
     with open(SLOTS_CONFIG_PATH, 'r') as f:
         config = json.load(f)
         slots = config.get('terminal_boxes', [])
-        config_w = config.get('image_width', video_w)
-        config_h = config.get('image_height', video_h)
-    
-    print(f"Video dimensions: {video_w}x{video_h}")
-    print(f"Config dimensions: {config_w}x{config_h}")
-    
-    if video_w != config_w or video_h != config_h:
-        print(f"WARNING: Video ({video_w}x{video_h}) does not match config ({config_w}x{config_h})!")
-        print(f"Slots may not align correctly. Consider regenerating slots from video.")
-    
-    print(f"Loaded {len(slots)} parking slot(s)")
 
+    print(f"Slots loaded: {len(slots)}")
+
+    # 🔥 Initialize detector
     detector = ParkingMonitor(slots)
+
+    # 🔥 Start processing thread
     is_running = True
     processing_thread = threading.Thread(target=process_video)
     processing_thread.daemon = True
     processing_thread.start()
 
-    print("System initialized and running")
+    print("✅ System initialized and running\n")
     return True
 
 
@@ -458,6 +459,5 @@ def stop_stream():
         cap.release()
     return jsonify({"status": "stopped"})
 
-
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5002)
+    app.run(debug=True, host='0.0.0.0', port=5003)

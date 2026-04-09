@@ -16,7 +16,7 @@ import threading
 script_dir = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = Path(script_dir).resolve().parent
 MODEL_PATH = ROOT_DIR / "Models" / "aircraft_detector_v8.pt"
-VIDEO_PATH = ROOT_DIR / "Simulation_Videos" / "restricted_area_simulation.mp4"
+VIDEO_PATH = ROOT_DIR / "Simulation_Videos" / "restricted_video.mp4"
 ZONES_CONFIG_PATH = ROOT_DIR / "Airport_Simulator" / "restricted_zones.json"
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -40,6 +40,7 @@ current_data = {}
 is_running = False
 processing_thread = None
 video_loop_count = 0
+init_complete = False
 
 
 @dataclass
@@ -399,17 +400,26 @@ def process_video():
 
 
 def generate_frames():
-    global current_frame
+    global current_frame, init_complete
+    wait_count = 0
     while is_running:
         with frame_lock:
-            if current_frame is not None:
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + current_frame + b'\r\n')
+            frame = current_frame
+        
+        if frame is not None:
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            wait_count = 0
+        else:
+            wait_count += 1
+            if wait_count > 100:
+                print("Warning: No frame available for 3 seconds")
+                wait_count = 0
         time.sleep(0.03)
 
 
 def initialize_system():
-    global model, tracker, cap, zones, detector, is_running, processing_thread
+    global model, tracker, cap, zones, detector, is_running, processing_thread, init_complete
 
     if not os.path.exists(MODEL_PATH):
         print(f"Error: Model not found at {MODEL_PATH}")
@@ -425,6 +435,7 @@ def initialize_system():
 
     print(f"Loading model from: {MODEL_PATH}")
     model = YOLO(str(MODEL_PATH))
+    print("Model loaded successfully")
 
     print("Initializing DeepSort tracker...")
     tracker = DeepSort(max_age=30, n_init=3)
@@ -433,6 +444,14 @@ def initialize_system():
     if not cap.isOpened():
         print(f"Error: Cannot open video: {VIDEO_PATH}")
         return False
+    
+    ret, test_frame = cap.read()
+    if not ret or test_frame is None:
+        print("Error: Cannot read video frame")
+        cap.release()
+        return False
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    print(f"Video opened: {test_frame.shape[1]}x{test_frame.shape[0]}")
 
     with open(ZONES_CONFIG_PATH, 'r') as f:
         zones = json.load(f)
@@ -443,7 +462,14 @@ def initialize_system():
     processing_thread = threading.Thread(target=process_video)
     processing_thread.daemon = True
     processing_thread.start()
-
+    
+    time.sleep(0.5)
+    
+    _, buffer = cv2.imencode('.jpg', test_frame)
+    with frame_lock:
+        current_frame = buffer.tobytes()
+    
+    init_complete = True
     print("System initialized and running")
     return True
 
@@ -491,12 +517,13 @@ def start_stream():
 
 @app.route('/api/stop', methods=['POST'])
 def stop_stream():
-    global is_running
+    global is_running, init_complete
     is_running = False
+    init_complete = False
     if cap:
         cap.release()
     return jsonify({"status": "stopped"})
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    app.run(debug=True, host='0.0.0.0', port=5002)

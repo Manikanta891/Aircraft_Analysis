@@ -15,8 +15,8 @@ import threading
 script_dir = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = Path(script_dir).resolve().parent
 
-MODEL_PATH = ROOT_DIR / "Models" / "aircraft_detector_v8.pt"
-VIDEO_PATH = ROOT_DIR / "Simulation_Videos" / "simulation-4.mp4"
+MODEL_PATH = ROOT_DIR / "Models" / "aircraft_detector_v11.pt"
+VIDEO_PATH = ROOT_DIR / "Simulation_Videos" / "terminal_simulation.mp4"
 
 TERMINALS_CONFIG = ROOT_DIR / "Airport_Simulator" / "terminals.json"
 
@@ -184,7 +184,7 @@ class TerminalMonitor:
         }
 
 
-def load_configurations(video_w: int, video_h: int):
+def load_configurations():
     global monitor
 
     monitor.gates.clear()
@@ -193,17 +193,14 @@ def load_configurations(video_w: int, video_h: int):
         with open(TERMINALS_CONFIG, 'r') as f:
             term_data = json.load(f)
             boxes = term_data.get("terminal_boxes", [])
-            orig_w = term_data.get("image_width", video_w)
-            orig_h = term_data.get("image_height", video_h)
-            scale_x = video_w / orig_w if orig_w > 0 else 1
-            scale_y = video_h / orig_h if orig_h > 0 else 1
+
             for i, box in enumerate(boxes):
                 monitor.gates.append(TerminalGate(
                     id=f"G{i+1}",
-                    x=int(box[0] * scale_x),
-                    y=int(box[1] * scale_y),
-                    w=int(box[2] * scale_x),
-                    h=int(box[3] * scale_y)
+                    x=int(box[0]),
+                    y=int(box[1]),
+                    w=int(box[2]),
+                    h=int(box[3])
                 ))
         print(f"Loaded {len(monitor.gates)} gate(s)")
     else:
@@ -270,6 +267,36 @@ def process_video():
 
         terminal_data = monitor.get_terminal_data()
 
+        # -----------------------------
+        # DRAW TERMINAL BOUNDING BOXES
+        # -----------------------------
+        for gate in monitor.gates:
+            x, y, w, h = gate.x, gate.y, gate.w, gate.h
+
+            # Color based on status
+            if gate.status == "FREE":
+                color = (0, 255, 0)        # Green
+            elif gate.status == "OCCUPIED":
+                color = (0, 165, 255)      # Orange
+            # else:
+            #     color = (0, 0, 255)        # Red (ERROR)
+
+            # Draw rectangle
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+
+            # Label text
+            label = f"{gate.id}"
+            if gate.aircraft_id:
+                label += f" | AC-{gate.aircraft_id}"
+
+            # Draw label background
+            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+            cv2.rectangle(frame, (x, y - 20), (x + tw, y), color, -1)
+
+            # Put text
+            cv2.putText(frame, label, (x, y - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+
         data = {
             "terminal": terminal_data,
             "timestamp": datetime.now().strftime("%H:%M:%S"),
@@ -327,7 +354,7 @@ def initialize_system():
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
     print(f"Video dimensions: {video_w}x{video_h}")
-    load_configurations(video_w, video_h)
+    load_configurations()
 
     is_running = True
     processing_thread = threading.Thread(target=process_video)

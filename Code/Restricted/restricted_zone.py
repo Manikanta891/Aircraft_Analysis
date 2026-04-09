@@ -12,9 +12,9 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Optional, Set
 
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 MODEL_PATH = ROOT_DIR / "Models" / "aircraft_detector_v8.pt"
-VIDEO_PATH = ROOT_DIR / "Simulation_Videos" / "restricted_area_simulation.mp4"
+VIDEO_PATH = ROOT_DIR / "Simulation_Videos" / "restricted_video.mp4"
 RESTRICTED_ZONES_CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "restricted_zones.json")
 
 TRAJECTORY_HISTORY_SIZE = 8

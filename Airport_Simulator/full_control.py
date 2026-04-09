@@ -6,7 +6,7 @@ import os
 script_dir = os.path.dirname(os.path.abspath(__file__))
 media_dir = os.path.normpath(os.path.join(script_dir, "..", "Media"))
 
-img_path = os.path.join(media_dir, "parking.jpg")
+img_path = os.path.join(media_dir, "terminal.jpg")
 img = cv2.imread(img_path)
 if img is None:
     print(f"Error: Image not found: {img_path}")
@@ -278,7 +278,7 @@ with open("simulation_path.json", "w") as f:
 
 print("\nSaved simulation route to simulation_path.json")
 
-out = cv2.VideoWriter("simulation.mp4", 0x00000021, 30, (orig_w, orig_h))
+out = cv2.VideoWriter("simulation.mp4", cv2.VideoWriter_fourcc(*'mp4v'), 30, (orig_w, orig_h))
 
 cv2.namedWindow("Simulation", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("Simulation", window_w, window_h)
